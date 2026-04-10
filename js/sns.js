@@ -218,9 +218,16 @@ const SNS = {
     // Schedule toggle
     const toggleCheck = document.getElementById('schedule-toggle-check');
     const dateRow = document.getElementById('schedule-date-row');
+    const saveBtn = document.getElementById('post-save-btn');
+    const updateSaveBtn = () => {
+      if (post?.status === 'posted') return;
+      saveBtn.textContent = toggleCheck.checked ? 'スケジュールに追加' : '保存する';
+    };
     toggleCheck.addEventListener('change', () => {
       dateRow.classList.toggle('visible', toggleCheck.checked);
+      updateSaveBtn();
     });
+    updateSaveBtn();
 
     // Hashtag adding
     const addHashtag = () => {
@@ -272,16 +279,37 @@ const SNS = {
     });
   },
 
+  _flashField(selector) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.style.outline = '2px solid var(--error)';
+    el.style.outlineOffset = '2px';
+    setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 2000);
+  },
+
   _savePost(status, existingPost) {
     const content = document.getElementById('post-content').value.trim();
-    if (!content) { UI.showToast('本文を入力してください', 'error'); return; }
+    if (!content) {
+      UI.showToast('本文を入力してください', 'error');
+      this._flashField('#post-content');
+      document.getElementById('post-content')?.focus();
+      return;
+    }
     const platforms = [...document.querySelectorAll('input[name="platform"]:checked')].map(c => c.value);
-    if (platforms.length === 0) { UI.showToast('プラットフォームを1つ以上選択してください', 'error'); return; }
+    if (platforms.length === 0) {
+      UI.showToast('プラットフォームを1つ以上選択してください', 'error');
+      this._flashField('.composer-platforms');
+      return;
+    }
 
     let scheduledAt = null;
     if (status === 'scheduled') {
       const dtVal = document.getElementById('post-datetime').value;
-      if (!dtVal) { UI.showToast('投稿日時を選択してください', 'error'); return; }
+      if (!dtVal) {
+        UI.showToast('投稿日時を選択してください', 'error');
+        this._flashField('#post-datetime');
+        return;
+      }
       scheduledAt = new Date(dtVal).toISOString();
     }
 
