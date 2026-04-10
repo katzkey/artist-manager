@@ -116,5 +116,45 @@ const Store = {
   // ── Helpers ──
   generateId(prefix) {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  },
+
+  // ── Export / Import ──
+  exportJSON() {
+    const data = this._load();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `artist-manager-backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  importJSON() {
+    return new Promise((resolve, reject) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (!file) { reject('ファイルが選択されませんでした'); return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const data = JSON.parse(reader.result);
+            if (!data.artists || !data.events || !data.snsPosts) {
+              reject('無効なバックアップファイルです');
+              return;
+            }
+            this._save(data);
+            resolve(data);
+          } catch {
+            reject('JSONの解析に失敗しました');
+          }
+        };
+        reader.readAsText(file);
+      });
+      input.click();
+    });
   }
 };

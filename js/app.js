@@ -68,9 +68,9 @@ const App = {
       if (this.state.activePage === 'sns')      SNS.openComposer(null);
     });
 
-    // Topbar settings gear
+    // Topbar settings gear -> settings menu
     document.getElementById('topbar-settings-btn')?.addEventListener('click', () => {
-      if (this.state.activeArtistId) Artists.openEditModal(this.state.activeArtistId);
+      this._openSettingsModal();
     });
 
     // Content area delegation: overview buttons (すべて見る / アーティスト設定)
@@ -82,6 +82,63 @@ const App = {
         if (this.state.activeArtistId) Artists.openEditModal(this.state.activeArtistId);
         return;
       }
+    });
+  },
+
+  _openSettingsModal() {
+    const body = `
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${this.state.activeArtistId ? `
+        <button class="btn btn-secondary" id="settings-edit-artist" style="width:100%;justify-content:flex-start">
+          🎤 アーティスト設定
+        </button>` : ''}
+        <button class="btn btn-secondary" id="settings-export" style="width:100%;justify-content:flex-start">
+          💾 データをバックアップ (JSON)
+        </button>
+        <button class="btn btn-secondary" id="settings-import" style="width:100%;justify-content:flex-start">
+          📂 バックアップから復元
+        </button>
+        <button class="btn btn-danger btn-sm" id="settings-reset" style="width:100%;justify-content:flex-start;margin-top:8px">
+          🗑️ すべてのデータをリセット
+        </button>
+      </div>
+    `;
+    UI.openModal('設定', body, '');
+
+    document.getElementById('settings-edit-artist')?.addEventListener('click', () => {
+      UI.closeModal();
+      Artists.openEditModal(this.state.activeArtistId);
+    });
+
+    document.getElementById('settings-export').addEventListener('click', () => {
+      Store.exportJSON();
+      UI.showToast('バックアップをダウンロードしました');
+    });
+
+    document.getElementById('settings-import').addEventListener('click', async () => {
+      try {
+        await Store.importJSON();
+        UI.closeModal();
+        this.state.activeArtistId = Store.getMeta('activeArtistId') || Store.getArtists()[0]?.id || null;
+        UI.renderSidebar();
+        this.navigate('overview');
+        UI.showToast('データを復元しました');
+      } catch (err) {
+        UI.showToast(String(err), 'error');
+      }
+    });
+
+    document.getElementById('settings-reset').addEventListener('click', async () => {
+      const ok = await UI.confirm('すべてのデータを削除してデモデータに戻しますか？この操作は元に戻せません。');
+      if (!ok) return;
+      localStorage.removeItem(Store.KEY);
+      Store.migrate();
+      Seed.load();
+      this.state.activeArtistId = Store.getMeta('activeArtistId') || Store.getArtists()[0]?.id || null;
+      UI.closeModal();
+      UI.renderSidebar();
+      this.navigate('overview');
+      UI.showToast('データをリセットしました');
     });
   },
 
