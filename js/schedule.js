@@ -84,8 +84,11 @@ const Schedule = {
     const startDow = firstDay.getDay(); // 0=Sun
     const totalDays = lastDay.getDate();
 
-    // Get events for dot rendering
+    // Get events + scheduled SNS posts for dot rendering
     const events = Store.getEvents(App.state.activeArtistId);
+    const snsPosts = Store.getPosts(App.state.activeArtistId)
+      .filter(p => p.status === 'scheduled' && p.scheduledAt);
+    const snsPostDates = new Set(snsPosts.map(p => p.scheduledAt.slice(0, 10)));
     const eventDates = new Set(events.map(e => e.date));
 
     let html = '';
@@ -103,12 +106,18 @@ const Schedule = {
       const dayDate = new Date(year, month, d);
       const isToday   = dayDate.getTime() === today.getTime();
       const isSelected = dateStr === this.selectedDate;
-      const hasDot    = eventDates.has(dateStr);
+      const hasEvent  = eventDates.has(dateStr);
+      const hasSNS    = snsPostDates.has(dateStr);
       const classes   = ['calendar-day', isToday ? 'today' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ');
+
+      const dots = [
+        hasEvent ? '<div class="cal-dot"></div>' : '',
+        hasSNS   ? '<div class="cal-dot" style="background:var(--warning)"></div>' : ''
+      ].join('');
 
       html += `<div class="${classes}" data-date="${dateStr}">
         <span class="cal-num">${d}</span>
-        <div class="cal-dots">${hasDot ? '<div class="cal-dot"></div>' : ''}</div>
+        <div class="cal-dots">${dots}</div>
       </div>`;
     }
 
@@ -130,9 +139,33 @@ const Schedule = {
 
     let events = Store.getEvents(App.state.activeArtistId);
 
+    // Merge scheduled SNS posts as pseudo-events
+    const snsPosts = Store.getPosts(App.state.activeArtistId)
+      .filter(p => p.status === 'scheduled' && p.scheduledAt);
+    const snsAsEvents = snsPosts.map(p => {
+      const dt = new Date(p.scheduledAt);
+      const pad = n => String(n).padStart(2, '0');
+      return {
+        id: p.id,
+        artistId: p.artistId,
+        title: '📣 ' + (p.content || '').slice(0, 30) + (p.content.length > 30 ? '...' : ''),
+        type: 'sns',
+        date: `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`,
+        startTime: `${pad(dt.getHours())}:${pad(dt.getMinutes())}`,
+        endTime: '',
+        venue: (p.platforms || []).map(id => { const pf = SNS.PLATFORMS.find(x => x.id === id); return pf ? pf.label : id; }).join(', '),
+        location: '',
+        _isSNS: true
+      };
+    });
+
+    events = [...events, ...snsAsEvents];
+
     // Filter by type
-    if (this.filterType !== 'all') {
+    if (this.filterType !== 'all' && this.filterType !== 'sns') {
       events = events.filter(e => e.type === this.filterType);
+    } else if (this.filterType === 'sns') {
+      events = events.filter(e => e._isSNS);
     }
 
     // Filter by selected date
@@ -175,8 +208,8 @@ const Schedule = {
   },
 
   _eventCardHTML(ev) {
-    const typeLabel = { show: 'ライブ', rehearsal: 'リハーサル', meeting: '打ち合わせ', other: 'その他' };
-    const badgeClass = { show: 'badge-show', rehearsal: 'badge-rehearsal', meeting: 'badge-meeting', other: 'badge-other' };
+    const typeLabel = { show: 'ライブ', rehearsal: 'リハーサル', meeting: '打ち合わせ', other: 'その他', sns: 'SNS投稿' };
+    const badgeClass = { show: 'badge-show', rehearsal: 'badge-rehearsal', meeting: 'badge-meeting', other: 'badge-other', sns: 'badge-scheduled' };
     return `
       <div class="event-card" data-event-id="${ev.id}">
         <div class="event-time-col">

@@ -274,6 +274,7 @@ const App = {
         <div class="filter-tab" data-type="rehearsal">リハーサル</div>
         <div class="filter-tab" data-type="meeting">打ち合わせ</div>
         <div class="filter-tab" data-type="other">その他</div>
+        <div class="filter-tab" data-type="sns">SNS投稿</div>
       </div>
 
       <div class="schedule-layout">
