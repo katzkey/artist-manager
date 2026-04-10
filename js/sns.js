@@ -179,14 +179,8 @@ const SNS = {
         <div class="hashtags-list" id="hashtags-list">${this._renderHashtagsList()}</div>
       </div>
       <div class="form-group">
-        <label class="schedule-toggle">
-          <input type="checkbox" id="schedule-toggle-check" ${isScheduled ? 'checked' : ''}>
-          <span class="toggle-switch"></span>
-          スケジュール投稿
-        </label>
-        <div class="schedule-date-row ${isScheduled ? 'visible' : ''}" id="schedule-date-row">
-          <input type="datetime-local" id="post-datetime" value="${dtLocal}">
-        </div>
+        <label class="form-label">投稿日時（入力するとスケジュール予約、空なら下書き保存）</label>
+        <input type="datetime-local" id="post-datetime" value="${dtLocal}">
       </div>
     `;
 
@@ -194,8 +188,7 @@ const SNS = {
       ${post ? `<button class="btn btn-danger btn-sm" id="post-delete-footer-btn" data-post-id="${post.id}">削除</button>` : ''}
       <div style="flex:1"></div>
       <button class="btn btn-secondary" id="post-cancel-btn">キャンセル</button>
-      ${post?.status !== 'posted' ? `<button class="btn btn-secondary" id="post-draft-btn">下書き保存</button>` : ''}
-      <button class="btn btn-primary" id="post-save-btn">${post?.status === 'posted' ? '更新する' : 'スケジュールに追加'}</button>
+      <button class="btn btn-primary" id="post-save-btn">${post?.status === 'posted' ? '更新する' : '保存する'}</button>
     `;
 
     UI.openModal(post ? '投稿を編集' : '投稿を作成', body, footer);
@@ -215,19 +208,7 @@ const SNS = {
     document.querySelectorAll('input[name="platform"]').forEach(cb => cb.addEventListener('change', updateCounter));
     updateCounter();
 
-    // Schedule toggle
-    const toggleCheck = document.getElementById('schedule-toggle-check');
-    const dateRow = document.getElementById('schedule-date-row');
-    const saveBtn = document.getElementById('post-save-btn');
-    const updateSaveBtn = () => {
-      if (post?.status === 'posted') return;
-      saveBtn.textContent = toggleCheck.checked ? 'スケジュールに追加' : '保存する';
-    };
-    toggleCheck.addEventListener('change', () => {
-      dateRow.classList.toggle('visible', toggleCheck.checked);
-      updateSaveBtn();
-    });
-    updateSaveBtn();
+    // No toggle needed - datetime field presence determines scheduling
 
     // Hashtag adding
     const addHashtag = () => {
@@ -263,18 +244,13 @@ const SNS = {
 
     document.getElementById('post-cancel-btn').addEventListener('click', () => UI.closeModal());
 
-    // Draft save
-    document.getElementById('post-draft-btn')?.addEventListener('click', () => {
-      this._savePost('draft', post);
-    });
-
-    // Schedule save
+    // Save button: auto-detect scheduled vs draft based on datetime
     document.getElementById('post-save-btn').addEventListener('click', () => {
       if (post?.status === 'posted') {
         this._savePost('posted', post);
       } else {
-        const isScheduledChecked = document.getElementById('schedule-toggle-check').checked;
-        this._savePost(isScheduledChecked ? 'scheduled' : 'draft', post);
+        const hasDatetime = !!document.getElementById('post-datetime').value;
+        this._savePost(hasDatetime ? 'scheduled' : 'draft', post);
       }
     });
   },
@@ -327,7 +303,7 @@ const SNS = {
     Store.savePost(saved);
     UI.closeModal();
     this.renderPosts();
-    const msg = { draft: '下書きに保存しました', scheduled: 'スケジュールに追加しました', posted: '投稿を更新しました' };
+    const msg = { draft: '下書きとして保存しました（日時を設定するとスケジュール予約になります）', scheduled: 'スケジュールに追加しました', posted: '投稿を更新しました' };
     UI.showToast(msg[status] || '保存しました');
   },
 
